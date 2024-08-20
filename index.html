@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Inline CSS */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        #main {
+            text-align: center;
+        }
+
+        .ui {
+            margin: 20px auto;
+            display: inline-block;
+        }
+
+        .row {
+            display: flex;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            text-align: center;
+            vertical-align: middle;
+            border: 1px solid #ccc;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .cell:focus {
+            outline: none;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #playerNames {
+            margin-bottom: 20px;
+        }
+
+        #playerNames input {
+            margin: 5px;
+            padding: 5px;
+        }
+
+        #playerDisplay {
+            margin-bottom: 20px;
+        }
+
+        #playerDisplay p {
+            margin: 5px;
+        }
+
+        .winning {
+            background-color: yellow;
+        }
+
+        #leaderboard {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+        <h1>TIC TAC TOE</h1>
+        <p id="ins">
+            <br><br>
+            First Player starts as <b>Player X</b> And Second Player as <b>Player O</b>
+        </p>
+
+        <!-- Player Names Section -->
+        <div id="playerNames">
+            <input type="text" id="player1Name" placeholder="Enter Player 1 Name">
+            <input type="text" id="player2Name" placeholder="Enter Player 2 Name">
+            <button onclick="setPlayerNames()">Set Names</button>
+        </div>
+
+        <div id="playerDisplay">
+            <p id="player1Display">Player 1: X</p>
+            <p id="player2Display">Player 2: O</p>
+        </div>
+
+        <div class="ui">
+            <div class="row">
+                <input type="text" id="b1" class="cell" onclick="makeMove(this);" readonly>
+                <input type="text" id="b2" class="cell" onclick="makeMove(this);" readonly>
+                <input type="text" id="b3" class="cell" onclick="makeMove(this);" readonly>
+            </div>
+            <div class="row">
+                <input type="text" id="b4" class="cell" onclick="makeMove(this);" readonly>
+                <input type="text" id="b5" class="cell" onclick="makeMove(this);" readonly>
+                <input type="text" id="b6" class="cell" onclick="makeMove(this);" readonly>
+            </div>
+            <div class="row">
+                <input type="text" id="b7" class="cell" onclick="makeMove(this);" readonly>
+                <input type="text" id="b8" class="cell" onclick="makeMove(this);" readonly>
+                <input type="text" id="b9" class="cell" onclick="makeMove(this);" readonly>
+            </div>
+        </div>
+
+        <button id="resetButton" onclick="resetGame()">RESET</button>
+        <p id="print"></p>
+
+        <!-- Leaderboard Section -->
+        <div id="leaderboard">
+            <h2>Leaderboard</h2>
+            <ul id="leaderboardList"></ul>
+        </div>
+    </div>
+
+    <script>
+        // Inline JavaScript
+        let currentPlayer = 'X';
+        let gameBoard = Array(9).fill('');
+        let player1Name = 'Player 1';
+        let player2Name = 'Player 2';
+
+        const API_URL = 'http://localhost:3000'; // Replace with your API base URL
+
+        function setPlayerNames() {
+            player1Name = document.getElementById('player1Name').value || 'Player 1';
+            player2Name = document.getElementById('player2Name').value || 'Player 2';
+            document.getElementById('player1Display').textContent = `Player 1: ${player1Name} (X)`;
+            document.getElementById('player2Display').textContent = `Player 2: ${player2Name} (O)`;
+            document.getElementById('player1Name').value = '';
+            document.getElementById('player2Name').value = '';
+        }
+
+        function makeMove(cell) {
+            if (cell.value === '') {
+                cell.value = currentPlayer;
+                gameBoard[cell.id.slice(1) - 1] = currentPlayer;
+                if (checkWinner()) {
+                    const winnerName = currentPlayer === 'X' ? player1Name : player2Name;
+                    document.getElementById('print').textContent = `${winnerName} won!`;
+                    disableAllCells();
+                    postScore(winnerName);
+                } else if (gameBoard.every(cell => cell !== '')) {
+                    document.getElementById('print').textContent = 'It\'s a draw';
+                } else {
+                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                }
+            }
+        }
+
+        function checkWinner() {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                [0, 4, 8], [2, 4, 6] // Diagonals
+            ];
+
+            for (const pattern of winPatterns) {
+                const [a, b, c] = pattern;
+                if (gameBoard[a] && gameBoard[a] === gameBoard[b] && gameBoard[a] === gameBoard[c]) {
+                    document.getElementById(`b${a + 1}`).classList.add('winning');
+                    document.getElementById(`b${b + 1}`).classList.add('winning');
+                    document.getElementById(`b${c + 1}`).classList.add('winning');
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function disableAllCells() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => cell.setAttribute('readonly', true));
+        }
+
+        async function postScore(name) {
+            try {
+                const score = currentPlayer === 'X' ? 1 : 0; // Example score logic
+                await fetch(`${API_URL}/leaderboard`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, score })
+                });
+                fetchLeaderboard(); // Refresh leaderboard after posting score
+            } catch (error) {
+                console.error('Error posting score:', error);
+            }
+        }
+
+        async function fetchLeaderboard() {
+            try {
+                const response = await fetch(`${API_URL}/leaderboard`);
+                const leaderboard = await response.json();
+                const leaderboardList = document.getElementById('leaderboardList');
+                leaderboardList.innerHTML = '';
+                leaderboard.forEach(entry => {
+                    const li = document.createElement('li');
+                    li.textContent = `${entry.name}: ${entry.score}`;
+                    leaderboardList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Error fetching leaderboard:', error);
+            }
+        }
+
+        function resetGame() {
+            gameBoard = Array(9).fill('');
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.value = '';
+                cell.classList.remove('winning');
+                cell.removeAttribute('readonly');
+            });
+            document.getElementById('print').textContent = '';
+            currentPlayer = 'X';
+        }
+
+        // Fetch leaderboard on page load
+        fetchLeaderboard();
+    </script>
+</body>
+</html>
