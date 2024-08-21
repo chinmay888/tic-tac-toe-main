@@ -87,13 +87,13 @@
         <!-- Player Names Section -->
         <div id="playerNames">
             <input type="text" id="player1Name" placeholder="Enter Player 1 Name">
-            <input type="text" id="player2Name" placeholder="Enter Player 2 Name">
+            <input type="text" id="player2Name" placeholder="Enter AI Name">
             <button onclick="setPlayerNames()">Set Names</button>
         </div>
 
         <div id="playerDisplay">
             <p id="player1Display">Player 1: X</p>
-            <p id="player2Display">Player 2: O</p>
+            <p id="player2Display">AI: O</p>
         </div>
 
         <div class="ui">
@@ -125,7 +125,6 @@
     </div>
 
     <script>
-        // Inline JavaScript
         let currentPlayer = 'X';
         let gameBoard = Array(9).fill('');
         let player1Name = 'Player 1';
@@ -143,7 +142,7 @@
         }
 
         function makeMove(cell) {
-            if (cell.value === '') {
+            if (cell.value === '' && currentPlayer === 'X') {
                 cell.value = currentPlayer;
                 gameBoard[cell.id.slice(1) - 1] = currentPlayer;
                 if (checkWinner()) {
@@ -154,7 +153,25 @@
                 } else if (gameBoard.every(cell => cell !== '')) {
                     document.getElementById('print').textContent = 'It\'s a draw';
                 } else {
-                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                    currentPlayer = 'O';
+                    aiMove();
+                }
+            }
+        }
+
+        function aiMove() {
+            const bestMove = findBestMove();
+            if (bestMove !== -1) {
+                document.getElementById(`b${bestMove + 1}`).value = 'O';
+                gameBoard[bestMove] = 'O';
+                if (checkWinner()) {
+                    document.getElementById('print').textContent = `${player2Name} won!`;
+                    disableAllCells();
+                    postScore(player2Name);
+                } else if (gameBoard.every(cell => cell !== '')) {
+                    document.getElementById('print').textContent = 'It\'s a draw';
+                } else {
+                    currentPlayer = 'X';
                 }
             }
         }
@@ -181,6 +198,70 @@
         function disableAllCells() {
             const cells = document.querySelectorAll('.cell');
             cells.forEach(cell => cell.setAttribute('readonly', true));
+        }
+
+        function findBestMove() {
+            let bestMove = -1;
+            let bestValue = -Infinity;
+
+            for (let i = 0; i < 9; i++) {
+                if (gameBoard[i] === '') {
+                    gameBoard[i] = 'O';
+                    const moveValue = minimax(gameBoard, 0, false);
+                    gameBoard[i] = '';
+                    if (moveValue > bestValue) {
+                        bestMove = i;
+                        bestValue = moveValue;
+                    }
+                }
+            }
+
+            return bestMove;
+        }
+
+        function minimax(board, depth, isMaximizing) {
+            const winner = checkWinnerInBoard(board);
+            if (winner === 'O') return 10 - depth;
+            if (winner === 'X') return depth - 10;
+            if (board.every(cell => cell !== '')) return 0;
+
+            if (isMaximizing) {
+                let bestValue = -Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (board[i] === '') {
+                        board[i] = 'O';
+                        bestValue = Math.max(bestValue, minimax(board, depth + 1, false));
+                        board[i] = '';
+                    }
+                }
+                return bestValue;
+            } else {
+                let bestValue = Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (board[i] === '') {
+                        board[i] = 'X';
+                        bestValue = Math.min(bestValue, minimax(board, depth + 1, true));
+                        board[i] = '';
+                    }
+                }
+                return bestValue;
+            }
+        }
+
+        function checkWinnerInBoard(board) {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                [0, 4, 8], [2, 4, 6] // Diagonals
+            ];
+
+            for (const pattern of winPatterns) {
+                const [a, b, c] = pattern;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    return board[a];
+                }
+            }
+            return null;
         }
 
         async function postScore(name) {
